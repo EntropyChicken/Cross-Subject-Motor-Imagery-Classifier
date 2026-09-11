@@ -10,6 +10,7 @@ scikit-learn==1.4.0
 mne==1.6.1
 moabb==1.0.0
 braindecode==0.8.1
+pyriemann==0.12
 
 # visualization
 matplotlib==3.8.2
