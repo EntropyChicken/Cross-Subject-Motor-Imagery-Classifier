@@ -1,17 +1,19 @@
 numpy==1.26.3
 scipy==1.12.0
-pandas==2.2.0
+pandas==1.5.3
 
+# notebooks
 jupyter==1.0.0
+ipykernel
 pooch==1.8.0
 
-# ML, BCI
+# ML and BCI
 scikit-learn==1.4.0
 mne==1.6.1
 pyriemann==0.5
 moabb==1.0.0
 braindecode==0.8.1
 
-# visualization
+# graphs
 matplotlib==3.8.2
-seaborn==0.13.2
+seaborn==0.12.2
