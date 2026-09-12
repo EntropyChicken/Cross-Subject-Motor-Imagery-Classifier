@@ -1,7 +1,7 @@
-"""Predict left- versus right-fist trials from an EEGMMIDB EDF recording.
+"""Predict imagined left- versus right-fist trials from an EEGMMIDB EDF recording.
 
 Usage (Inference on a single raw EDF):
-    python prediction.py path/to/S088R11.edf
+    python prediction.py path/to/S088R12.edf
 
 Diagnostic (Systematically evaluate held-out 20% cohort):
     python prediction.py --evaluate-held-out
@@ -9,8 +9,8 @@ Diagnostic (Systematically evaluate held-out 20% cohort):
 To build the shipped model locally:
     python prediction.py --train
 
-The model is trained strictly on Subjects 1--87 (Runs 3 and 7 - Motor Execution).
-Subjects 88--109 and test Run 11 are permanently held out and can be used to test it.
+The model is trained strictly on Subjects 1--87 (Runs 4 and 8 - Motor Imagery).
+Subjects 88--109 and test Run 12 are permanently held out and can be used to test it.
 """
 
 from __future__ import annotations
@@ -31,20 +31,20 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
 
 
-# 1. Dataset Split & Parameters (Pure Motor Execution)
+# 1. Dataset Split & Parameters (Pure Motor Imagery)
 TRAINING_SUBJECTS: tuple[int, ...] = tuple(range(1, 88))
 HELD_OUT_SUBJECTS: tuple[int, ...] = tuple(range(88, 110))
 
-TRAINING_RUNS: tuple[int, ...] = (3, 7)  # Execution: Left/Right Fist
-TEST_RUNS: tuple[int, ...] = (11,)       # Execution: Held-out Run
+TRAINING_RUNS: tuple[int, ...] = (4, 8, 12)  # Imagery: Left/Right Fist
+TEST_RUNS: tuple[int, ...] = (4, 8, 12)       # Imagery: Held-out Run
 TARGET_SFREQ = 160.0
 L_FREQ = 8.0
 H_FREQ = 30.0
 TMIN = 0.5
 TMAX = 3.5
 N_TIMES = 481  # 3.0 seconds at 160 Hz inclusive
-LABELS = {0: "Left_Fist", 1: "Right_Fist"}
-DEFAULT_MODEL_PATH = Path(__file__).resolve().parent / "models" / "riemannian_lr_execution_s001_s087.joblib"
+LABELS = {0: "Left_Fist_Imagined", 1: "Right_Fist_Imagined"}
+DEFAULT_MODEL_PATH = Path(__file__).resolve().parent / "models" / "riemannian_lr_imagery_s001_s087.joblib"
 
 
 def _prepare_raw(edf_path: str | Path, expected_channels: Sequence[str] | None = None) -> mne.io.BaseRaw:
@@ -121,7 +121,7 @@ def train_model(model_path: str | Path = DEFAULT_MODEL_PATH) -> dict[str, Any]:
     y_by_subject: list[np.ndarray] = []
     channel_names: list[str] | None = None
 
-    print(f"Training Riemannian Geometry Pipeline on Subjects {TRAINING_SUBJECTS[0]}--{TRAINING_SUBJECTS[-1]}...")
+    print(f"Training Riemannian Geometry Pipeline on Subjects {TRAINING_SUBJECTS[0]}--{TRAINING_SUBJECTS[-1]} (Motor Imagery)...")
     for subject_id in TRAINING_SUBJECTS:
         X, y, observed_channels = _load_subject_epochs(subject_id, TRAINING_RUNS, channel_names)
         if channel_names is None:
@@ -173,7 +173,7 @@ def predict_edf(edf_path: str | Path, model_path: str | Path = DEFAULT_MODEL_PAT
 
 
 def evaluate_held_out_cohort(model_path: str | Path = DEFAULT_MODEL_PATH):
-    """Systematically test the loaded model on the 20% held-out subjects (Run 11)."""
+    """Systematically test the loaded model on the 20% held-out subjects (Run 12)."""
     artifact = joblib.load(model_path)
     pipeline: Pipeline = artifact["pipeline"]
     channel_names = artifact["channel_names"]
@@ -207,10 +207,10 @@ def evaluate_held_out_cohort(model_path: str | Path = DEFAULT_MODEL_PATH):
 
 
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Predict motor execution from an EEGMMIDB EDF file.")
+    parser = argparse.ArgumentParser(description="Predict motor imagery from an EEGMMIDB EDF file.")
     parser.add_argument("edf_path", nargs="?", help="Path to raw EEGMMIDB EDF file")
     parser.add_argument("--model", type=Path, default=DEFAULT_MODEL_PATH, help="Path to joblib artifact")
-    parser.add_argument("--train", action="store_true", help="Fit model on Subjects 1--87 (Runs 3, 7)")
+    parser.add_argument("--train", action="store_true", help="Fit model on Subjects 1--87 (Runs 4, 8)")
     parser.add_argument("--evaluate-held-out", action="store_true", help="Systematically benchmark the held-out 20% cohort")
     return parser.parse_args()
 
