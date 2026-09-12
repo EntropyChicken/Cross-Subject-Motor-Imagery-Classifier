@@ -192,15 +192,18 @@ def evaluate_held_out_cohort(model_path: str | Path = DEFAULT_MODEL_PATH):
     df = pd.DataFrame(records)
     n = len(df)
     mean_acc = df["Accuracy"].mean()
-    sem_acc = df["Accuracy"].std(ddof=1) / np.sqrt(n)
+    sd_acc = df["Accuracy"].std(ddof=1)
+    sem_acc = sd_acc / np.sqrt(n)
+    ci_lower, ci_upper = stats.t.interval(0.95, df=n - 1, loc=mean_acc, scale=sem_acc)
     t_stat, p_val = stats.ttest_1samp(df["Accuracy"], popmean=0.50)
-    
-    print("\n" + "="*50)
+
+    print("\n" + "=" * 52)
     print(f"Held-Out Cohort Performance (N={n})")
     print(f"Model: {model_path.name}")
-    print(f"Mean Accuracy: {mean_acc:.2%} ± {sem_acc:.2%} SEM")
+    print(f"Mean Accuracy: {mean_acc:.2%} ± {sem_acc:.2%} SEM (SD: {sd_acc:.2%})")
+    print(f"95% Confidence Interval: [{ci_lower:.2%}, {ci_upper:.2%}]")
     print(f"Significance vs 50% Chance: p = {p_val/2:.4e} (1-tailed)")
-    print("="*50)
+    print("=" * 52)
 
 
 def _parse_args() -> argparse.Namespace:
