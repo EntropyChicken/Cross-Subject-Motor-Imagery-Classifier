@@ -30,7 +30,7 @@ from sklearn.pipeline import Pipeline
 # Dataset and preprocessing choices. These match the inter-subject notebook.
 TRAINING_SUBJECTS: tuple[int, ...] = tuple(range(1, 88))
 HELD_OUT_SUBJECTS: tuple[int, ...] = tuple(range(88, 110))
-TRAINING_RUNS: tuple[int, ...] = (3, 7)  # executed left/right fist
+TRAINING_RUNS: tuple[int, ...] = (4, 8, 12)  # 4 and 8 and 12 are for motor imagery. 3 and 7 and 11 for executed
 TARGET_SFREQ = 160.0
 L_FREQ = 8.0
 H_FREQ = 30.0
@@ -223,6 +223,44 @@ def predict_edf(edf_path: str | Path, model_path: str | Path = DEFAULT_MODEL_PAT
     return predictions
 
 
+# accesses ground truth values, only for development
+def compare_with_edf_labels(
+    edf_path: str | Path, model_path: str | Path = DEFAULT_MODEL_PATH
+) -> dict[str, Any]:
+    """Diagnostic only: compare predictions with the EDF's known T1/T2 labels."""
+    artifact = joblib.load(model_path)
+    raw = _prepare_raw(edf_path, artifact["channel_names"])
+    epochs, X = _epochs_from_raw(raw)
+    pipeline: Pipeline = artifact["pipeline"]
+    predicted_classes = pipeline.predict(X).astype(int)
+    true_classes = (epochs.events[:, -1] - 1).astype(int)
+
+    trials = []
+    for event, predicted_class, true_class in zip(epochs.events, predicted_classes, true_classes):
+        trials.append(
+            {
+                "cue_onset_seconds": round(float(event[0] / raw.info["sfreq"]), 6),
+                "true_label": LABELS[true_class],
+                "predicted_label": LABELS[predicted_class],
+                "correct": bool(predicted_class == true_class),
+            }
+        )
+    return {
+        "edf_path": str(edf_path),
+        "accuracy": float(np.mean(predicted_classes == true_classes)),
+        "n_trials": len(trials),
+        "true_label_counts": {
+            "Left_Fist": int(np.sum(true_classes == 0)),
+            "Right_Fist": int(np.sum(true_classes == 1)),
+        },
+        "predicted_label_counts": {
+            "Left_Fist": int(np.sum(predicted_classes == 0)),
+            "Right_Fist": int(np.sum(predicted_classes == 1)),
+        },
+        "trials": trials,
+    }
+
+
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Predict left/right fist trials from one EEGMMIDB EDF file.",
@@ -237,6 +275,12 @@ def _parse_args() -> argparse.Namespace:
         action="store_true",
         help="Train on subjects 1--87 only and save the model artifact",
     )
+    parser.add_argument(
+        "--compare-labels",
+        nargs="+",
+        metavar="EDF_PATH",
+        help="Diagnostic: compare predictions with known T1/T2 labels for one or more EDFs",
+    )
     return parser.parse_args()
 
 
@@ -250,6 +294,14 @@ def main() -> None:
             f"Saved model trained on {len(artifact['training_subjects'])} subjects to {args.model}. "
             f"Subjects {artifact['held_out_subjects'][0]}--{artifact['held_out_subjects'][-1]} were not used."
         )
+        return
+    if args.compare_labels:
+        if args.edf_path:
+            raise SystemExit("Provide either an EDF path or --compare-labels paths, not both.")
+        if not args.model.exists():
+            raise SystemExit(f"Model artifact not found: {args.model}. Run `python prediction.py --train` first.")
+        reports = [compare_with_edf_labels(edf_path, args.model) for edf_path in args.compare_labels]
+        print(json.dumps(reports, indent=2))
         return
     if not args.edf_path:
         raise SystemExit("Provide an EDF path, or use --train to create the model artifact.")
