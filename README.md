@@ -1,4 +1,4 @@
-# EEG Motor Imagery Classification
+# EEG Motor Imagery Fist Side Classification
 
 Cross-subject EEG motor imagery classification using the [PhysioNet EEGMMIDB](https://physionet.org/content/eegmmidb/1.0.0/) dataset.
 
@@ -247,7 +247,3 @@ Potential improvements include:
 - Investigation of frequency-band selection
 - Analysis of per-subject confusion matrices and prediction bias
 - More rigorous evaluation of whether additional runs improve cross-subject generalization
-
-## License
-
-See the repository license for details.
